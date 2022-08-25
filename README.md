@@ -2,9 +2,17 @@
 
 syntax
 
+## Topic
+parse a .html file to .csv file, and the .csv can be import to google spreadsheet.<p>
+**it must be concurrency, it is not allowed to be processed one by one**
+
+
 ## Step
-1. using goroutine to read the test data's name cocurrency
-2. serve the static file 
+1. using goroutine to read the test data's name cocurrency (V)
+2. serve the static file (port 8000) (V)
+3. web rawler to catch the data from .html file (X)
+4. analysis the data (X)
+5. output the result (X)
 
 
 ## Keyword
