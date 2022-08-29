@@ -13,6 +13,7 @@ parse a .html file to .csv file, and the .csv can be import to google spreadshee
 3. web rawler to catch the data from .html file (X)
 4. analysis the data (X)
 5. output the result (X)
+6. flag (X)
 
 
 ## Keyword
@@ -24,3 +25,4 @@ parse a .html file to .csv file, and the .csv can be import to google spreadshee
 lister and serve
 http.handle
 
+using flag package set port(V)

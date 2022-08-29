@@ -1,16 +1,20 @@
-package main
+package WebServe
 
 import (
 	"fmt"
 	"net/http"
 )
 
-func main() {
+func WebServer(port string) {
+	// fmt.Println("inside Webserver")
+
 	// serve the html file inside ./static
-	http.Handle("/", http.FileServer(http.Dir("./static")))
+	http.Handle("/", http.FileServer(http.Dir("./Training_Program/static")))
+
+	fmt.Println("Listening and Serving port: ", port)
 
 	// port 8000
-	err := http.ListenAndServe(":8000", nil)
+	err := http.ListenAndServe(":"+port, nil)
 	if err != nil {
 		fmt.Println(err)
 	}
