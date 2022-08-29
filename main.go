@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -12,18 +13,23 @@ import (
 	WebServe "github.com/training_ex1/Training_Program"
 )
 
-type Info struct {
-	date      string
-	modelName string
-	modelFail []int
+var port, dir string
+var testNum int
+var mux sync.Mutex
+
+func init() {
+	// flag, set port and dir, one more needed
+	flag.StringVar(&port, "port", "8000", "input port")
+	flag.StringVar(&dir, "dir", "/Users/leungyantung/go/src/github.com/training_ex1", "input path")
+
 }
 
-func webClamb(mux *sync.Mutex, file os.FileInfo, coll colly.Collector, port string, wg *sync.WaitGroup) {
-	//for _, file := range files {
+func webClamb(file os.FileInfo, coll colly.Collector, coll2 colly.Collector, port string, wg *sync.WaitGroup) {
 	if file.IsDir() {
 		return // continue
 	} else {
-		fmt.Println(file.Name())
+		// Print out all file name
+		// fmt.Println(file.Name())
 
 		// find "file.name().csv", if not existed, create one; if existed, clear it.
 		// the output file will created in path ./output/
@@ -34,17 +40,22 @@ func webClamb(mux *sync.Mutex, file os.FileInfo, coll colly.Collector, port stri
 		if err != nil {
 			fmt.Println("File is failed, err: ", err)
 		}
-		output.WriteString(";")
+		defer output.Close()
 
 		// find class=text-light from <tr>
-		coll.OnHTML("table", func(eTable *colly.HTMLElement) {
-			trTableEmpty := true
+		coll.OnHTML("table.matrix ", func(eTable *colly.HTMLElement) {
 			mux.Lock()
+			testNum = 0
+			trTableEmpty := true
+
 			eTable.ForEach(".staggered-odd", func(_ int, e *colly.HTMLElement) {
 				output.WriteString(";")
 				// output history, error least one can't print out
 				e.ForEach("div", func(_ int, el *colly.HTMLElement) {
 					output.WriteString(el.ChildText("div:nth-child(1)"))
+					if el.ChildText("div:nth-child(1)") != "" {
+						testNum++
+					}
 					trTableEmpty = false
 				})
 				//output.WriteString(";" + e.ChildText("div:nth-child(1)"))
@@ -63,7 +74,7 @@ func webClamb(mux *sync.Mutex, file os.FileInfo, coll colly.Collector, port stri
 			})
 
 			if trTableEmpty == false {
-				output.WriteString("\n;")
+				output.WriteString("\n")
 			}
 
 			// output date
@@ -72,57 +83,100 @@ func webClamb(mux *sync.Mutex, file os.FileInfo, coll colly.Collector, port stri
 				trTableEmpty = false
 			})
 
-			if trTableEmpty == false {
-				output.WriteString("\n")
+			//mux.Unlock()
+
+			output.WriteString("\n;;")
+
+			// output failed info
+			output.WriteString("\nfailed;")
+			for i := 0; i < testNum; i++ {
+				if i < 25 {
+					output.WriteString("=COUNTIF(" + string(66+i) + "8:" + string(66+i) + "330, \"x\");")
+				} else {
+					output.WriteString("=COUNTIF(" + string(65) + string(65+i%25) + "8:" + string(65) + string(65+i%25) + "330, \"x\")")
+				}
 			}
-			mux.Unlock()
+			//output.WriteString("\nfailed;" + "COUNTIF(B8:B330, \"x\");")
+			// output pass info
+			output.WriteString("\npass;")
+			for i := 0; i < testNum; i++ {
+				if i < 25 {
+					output.WriteString("=SUM(" + string(66+i) + "8:" + string(66+i) + "330);")
+				} else {
+					output.WriteString("=SUM(" + string(65) + string(65+i%25) + "8:" + string(65) + string(65+i%25) + "330);")
+				}
+			}
+			// output total run info
+			output.WriteString("\ntotal run;")
+			for i := 0; i < testNum; i++ {
+				if i < 25 {
+					output.WriteString("=COUNTA(" + string(66+i) + "8:" + string(66+i) + "330);")
+				} else {
+					output.WriteString("=COUNTA(" + string(65) + string(65+i%25) + "8:" + string(65) + string(65+i%25) + "330);")
+				}
+			}
+			// output pass rate info
+			output.WriteString("\npass rate;")
+			for i := 0; i < testNum; i++ {
+				if i < 25 {
+					output.WriteString("=IF(" + string(66+i) + "5=0, \"N/A\"," + string(66+i) + "5/" + string(66+i) + "6);")
+				} else {
+					output.WriteString("=IF(" + string(65) + string(65+i%25) + "5=0, \"N/A\"," + string(65) + string(65+i%25) + "5/" + string(65) + string(65+i%25) + "6);")
+				}
+			}
+
+			output.WriteString("\n;;")
 
 			eTable.ForEach("tr", func(_ int, e *colly.HTMLElement) {
-				trEmpty := true
-				mux.Lock()
+
+				//trEmpty := true
+
+				//mux.Lock()
+				//testNum = 25
 
 				// output model name
 				e.ForEach(".boardmodel", func(_ int, el *colly.HTMLElement) {
-					el.ForEach("span", func(_ int, el2 *colly.HTMLElement) {
-						output.WriteString(el2.Text + ";")
-						trEmpty = false
-					})
+					if el.ChildText("span") != "" {
+						output.WriteString("\n" + el.ChildText("span") + ";")
+					}
+
+					// el.ForEach("span", func(_ int, el2 *colly.HTMLElement) {
+					// 	output.WriteString(el2.Text + ";")
+					// 	trEmpty = false
+					// })
 				})
 				//fmt.Println("in onhtml", file.Name())
+				//mux.Unlock()
+				//mux.Lock()
+
 				e.ForEach(".cell-full", func(_ int, el *colly.HTMLElement) {
-					el.ForEach(".text-light", func(_ int, el2 *colly.HTMLElement) {
-						output.WriteString(el2.Text)
+					el.ForEach(".text-success", func(_ int, _ *colly.HTMLElement) {
+						output.WriteString("1")
+					})
+					el.ForEach(".text-light", func(_ int, _ *colly.HTMLElement) {
+						output.WriteString("x")
 					})
 					output.WriteString(";")
 				})
-				if trEmpty == false {
-					output.WriteString("\n")
-				}
 				// output to the file with the same name
-				mux.Unlock()
-			})
 
+			})
+			mux.Unlock()
 		})
 
 		coll.Visit("http://localhost:" + port + "/" + file.Name())
 		// fmt.Println(output.Name())
-		output.Close()
 		wg.Done()
+
 	}
 
-	//}
 }
 
 func main() {
 	coll := colly.NewCollector()
-	var mux sync.Mutex
+	coll2 := colly.NewCollector()
 	wg := new(sync.WaitGroup)
-	wg.Add(68)
 
-	//var port string
-	var port, dir string
-	flag.StringVar(&port, "port", "8000", "input port")
-	flag.StringVar(&dir, "dir", "/Users/leungyantung/go/src/github.com/training_ex1", "input path")
 	flag.Parse()
 
 	go WebServe.WebServer(port)
@@ -136,8 +190,16 @@ func main() {
 		fmt.Println(err)
 	}
 
+	// create a folder called output if it doesnt exist
+	outputPath := filepath.Join(".", "output")
+	err = os.MkdirAll(outputPath, os.ModePerm)
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	for _, file := range files {
-		go webClamb(&mux, file, *coll, port, wg)
+		wg.Add(1)
+		go webClamb(file, *coll, *coll2, port, wg)
 	}
 
 	wg.Wait()

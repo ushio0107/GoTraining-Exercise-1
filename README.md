@@ -10,17 +10,16 @@ parse a .html file to .csv file, and the .csv can be import to google spreadshee
 ## Step
 1. using goroutine to read the test data's name cocurrency (V)
 2. serve the static file (port 8000) (V)
-3. web rawler to catch the data from .html file (X)
-4. analysis the data (X)
+3. web rawler to catch the data from .html file (V)
+4. analysis the data (ING)
 5. output the result (X)
-6. flag (X)
+6. flag (1/2)
 
 
 ## Keyword
 1. static file
 2. httptest
 3. colly // check keyword from a web page or a server
-4. 
 
 lister and serve
 http.handle
