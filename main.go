@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -13,18 +14,19 @@ import (
 	WebServe "github.com/training_ex1/Training_Program"
 )
 
-var port, dir string
-var testNum int
+var port, dir, outputDirName string
+var testNum, modelNum int
 var mux sync.Mutex
 
 func init() {
 	// flag, set port and dir, one more needed
 	flag.StringVar(&port, "port", "8000", "input port")
 	flag.StringVar(&dir, "dir", "/Users/leungyantung/go/src/github.com/training_ex1", "input path")
+	flag.StringVar(&outputDirName, "outputDirName", "/output", "input outputDirName")
 
 }
 
-func webClamb(file os.FileInfo, coll colly.Collector, coll2 colly.Collector, port string, wg *sync.WaitGroup) {
+func webClamb(outputPath string, file os.FileInfo, collUpper colly.Collector, collLower colly.Collector, port string, wg *sync.WaitGroup) {
 	if file.IsDir() {
 		return // continue
 	} else {
@@ -34,7 +36,7 @@ func webClamb(file os.FileInfo, coll colly.Collector, coll2 colly.Collector, por
 		// find "file.name().csv", if not existed, create one; if existed, clear it.
 		// the output file will created in path ./output/
 
-		output, err := os.Create("./output/" + strings.Replace(file.Name(), ".html", "", -1) + ".csv")
+		output, err := os.Create(outputPath + "/" + strings.Replace(file.Name(), ".html", "", -1) + ".csv")
 
 		//fmt.Println(output.Name())
 		if err != nil {
@@ -43,10 +45,18 @@ func webClamb(file os.FileInfo, coll colly.Collector, coll2 colly.Collector, por
 		defer output.Close()
 
 		// find class=text-light from <tr>
-		coll.OnHTML("table.matrix ", func(eTable *colly.HTMLElement) {
+		collUpper.OnHTML("table.matrix ", func(eTable *colly.HTMLElement) {
 			mux.Lock()
-			testNum = 0
+			testNum, modelNum = 0, 0
 			trTableEmpty := true
+
+			eTable.ForEach("tr", func(_ int, e *colly.HTMLElement) {
+				e.ForEach(".boardmodel", func(_ int, el *colly.HTMLElement) {
+					if el.ChildText("span") != "" {
+						modelNum++
+					}
+				})
+			})
 
 			eTable.ForEach(".staggered-odd", func(_ int, e *colly.HTMLElement) {
 				output.WriteString(";")
@@ -58,6 +68,7 @@ func webClamb(file os.FileInfo, coll colly.Collector, coll2 colly.Collector, por
 					}
 					trTableEmpty = false
 				})
+
 				//output.WriteString(";" + e.ChildText("div:nth-child(1)"))
 
 				// e.ForEach("a[href]", func(_ int, el *colly.HTMLElement) {
@@ -91,28 +102,28 @@ func webClamb(file os.FileInfo, coll colly.Collector, coll2 colly.Collector, por
 			output.WriteString("\nfailed;")
 			for i := 0; i < testNum; i++ {
 				if i < 25 {
-					output.WriteString("=COUNTIF(" + string(66+i) + "8:" + string(66+i) + "330, \"x\");")
+					output.WriteString("=COUNTIF(" + string(66+i) + "9:" + string(66+i) + strconv.Itoa(modelNum+8) + ", \"x\");")
 				} else {
-					output.WriteString("=COUNTIF(" + string(65) + string(65+i%25) + "8:" + string(65) + string(65+i%25) + "330, \"x\")")
+					output.WriteString("=COUNTIF(" + string(65) + string(65+i%25) + "9:" + string(65) + string(65+i%25) + strconv.Itoa(modelNum+8) + ", \"x\");")
 				}
 			}
-			//output.WriteString("\nfailed;" + "COUNTIF(B8:B330, \"x\");")
+			//output.WriteString("\nfailed;" + "COUNTIF(B9:B330, \"x\");")
 			// output pass info
 			output.WriteString("\npass;")
 			for i := 0; i < testNum; i++ {
 				if i < 25 {
-					output.WriteString("=SUM(" + string(66+i) + "8:" + string(66+i) + "330);")
+					output.WriteString("=SUM(" + string(66+i) + "9:" + string(66+i) + strconv.Itoa(modelNum+8) + ");")
 				} else {
-					output.WriteString("=SUM(" + string(65) + string(65+i%25) + "8:" + string(65) + string(65+i%25) + "330);")
+					output.WriteString("=SUM(" + string(65) + string(65+i%25) + "9:" + string(65) + string(65+i%25) + strconv.Itoa(modelNum+8) + ");")
 				}
 			}
 			// output total run info
 			output.WriteString("\ntotal run;")
 			for i := 0; i < testNum; i++ {
 				if i < 25 {
-					output.WriteString("=COUNTA(" + string(66+i) + "8:" + string(66+i) + "330);")
+					output.WriteString("=COUNTA(" + string(66+i) + "9:" + string(66+i) + strconv.Itoa(modelNum+8) + ");")
 				} else {
-					output.WriteString("=COUNTA(" + string(65) + string(65+i%25) + "8:" + string(65) + string(65+i%25) + "330);")
+					output.WriteString("=COUNTA(" + string(65) + string(65+i%25) + "9:" + string(65) + string(65+i%25) + strconv.Itoa(modelNum+8) + ");")
 				}
 			}
 			// output pass rate info
@@ -126,7 +137,11 @@ func webClamb(file os.FileInfo, coll colly.Collector, coll2 colly.Collector, por
 			}
 
 			output.WriteString("\n;;")
+		})
 
+		collUpper.Visit("http://localhost:" + port + "/" + file.Name())
+
+		collLower.OnHTML("table.matrix ", func(eTable *colly.HTMLElement) {
 			eTable.ForEach("tr", func(_ int, e *colly.HTMLElement) {
 
 				//trEmpty := true
@@ -145,9 +160,6 @@ func webClamb(file os.FileInfo, coll colly.Collector, coll2 colly.Collector, por
 					// 	trEmpty = false
 					// })
 				})
-				//fmt.Println("in onhtml", file.Name())
-				//mux.Unlock()
-				//mux.Lock()
 
 				e.ForEach(".cell-full", func(_ int, el *colly.HTMLElement) {
 					el.ForEach(".text-success", func(_ int, _ *colly.HTMLElement) {
@@ -158,13 +170,12 @@ func webClamb(file os.FileInfo, coll colly.Collector, coll2 colly.Collector, por
 					})
 					output.WriteString(";")
 				})
-				// output to the file with the same name
 
 			})
 			mux.Unlock()
 		})
 
-		coll.Visit("http://localhost:" + port + "/" + file.Name())
+		collLower.Visit("http://localhost:" + port + "/" + file.Name())
 		// fmt.Println(output.Name())
 		wg.Done()
 
@@ -173,33 +184,30 @@ func webClamb(file os.FileInfo, coll colly.Collector, coll2 colly.Collector, por
 }
 
 func main() {
-	coll := colly.NewCollector()
-	coll2 := colly.NewCollector()
+	collUpper := colly.NewCollector()
+	collLower := colly.NewCollector()
 	wg := new(sync.WaitGroup)
 
 	flag.Parse()
 
-	go WebServe.WebServer(port)
-
-	// flag setting
-	//flag.StringVar(&port, "port", "")
-
-	data := `./Training_Program/static` // test data path
-	files, err := ioutil.ReadDir(data)  // read all the file inside the path above
+	data := `/test_data`                     // test data path
+	files, err := ioutil.ReadDir(dir + data) // read all the file inside the path above
 	if err != nil {
 		fmt.Println(err)
 	}
+	go WebServe.WebServer(port, dir+data)
 
 	// create a folder called output if it doesnt exist
-	outputPath := filepath.Join(".", "output")
+	outputPath := filepath.Join(dir, outputDirName)
 	err = os.MkdirAll(outputPath, os.ModePerm)
+	fmt.Println(outputPath)
 	if err != nil {
 		fmt.Println(err)
 	}
 
 	for _, file := range files {
 		wg.Add(1)
-		go webClamb(file, *coll, *coll2, port, wg)
+		go webClamb(outputPath, file, *collUpper, *collLower, port, wg)
 	}
 
 	wg.Wait()

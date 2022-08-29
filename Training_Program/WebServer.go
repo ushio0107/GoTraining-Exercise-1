@@ -5,11 +5,11 @@ import (
 	"net/http"
 )
 
-func WebServer(port string) {
+func WebServer(port string, dataPath string) {
 	// fmt.Println("inside Webserver")
 
 	// serve the html file inside ./static
-	http.Handle("/", http.FileServer(http.Dir("./Training_Program/static")))
+	http.Handle("/", http.FileServer(http.Dir(dataPath)))
 
 	fmt.Println("Listening and Serving port: ", port)
 
