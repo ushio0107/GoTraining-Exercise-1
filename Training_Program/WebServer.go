@@ -7,11 +7,10 @@ import (
 
 func WebServer(port string, dataPath string) {
 	// fmt.Println("inside Webserver")
+	fmt.Println("Listening and Serving port: ", port)
 
 	// serve the html file inside ./static
 	http.Handle("/", http.FileServer(http.Dir(dataPath)))
-
-	fmt.Println("Listening and Serving port: ", port)
 
 	// port 8000
 	err := http.ListenAndServe(":"+port, nil)

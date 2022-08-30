@@ -18,6 +18,16 @@ var port, dir, outputDirName string
 var testNum, modelNum int
 var mux sync.Mutex
 
+type Info struct {
+	testCase    string
+	testDate    string
+	testNum     int
+	modelNum    int
+	modelName   string
+	excelFomula string
+	testResult  string
+}
+
 func init() {
 	// flag, set port and dir, one more needed
 	flag.StringVar(&port, "port", "8000", "input port")
@@ -26,28 +36,26 @@ func init() {
 
 }
 
-func webClamb(outputPath string, file os.FileInfo, collUpper colly.Collector, collLower colly.Collector, port string, wg *sync.WaitGroup) {
+func webClamb(testCase Info, outputPath string, file os.FileInfo, collUpper colly.Collector, collLower colly.Collector, port string, wg *sync.WaitGroup) {
 	if file.IsDir() {
 		return // continue
 	} else {
-		// Print out all file name
-		// fmt.Println(file.Name())
 
-		// find "file.name().csv", if not existed, create one; if existed, clear it.
-		// the output file will created in path ./output/
-
+		// To avoid output files aren't exist, os.Create will create file if file doesn't exist,
+		// clear file if file already existed, output file name will as the same as input file
+		// also, to avoid double file format, .html will be taken out by strings.Replace
 		output, err := os.Create(outputPath + "/" + strings.Replace(file.Name(), ".html", "", -1) + ".csv")
-
-		//fmt.Println(output.Name())
+		fmt.Println("Created output file: ", output.Name())
 		if err != nil {
 			fmt.Println("File is failed, err: ", err)
 		}
 		defer output.Close()
 
-		// find class=text-light from <tr>
+		// select path
 		collUpper.OnHTML("table.matrix ", func(eTable *colly.HTMLElement) {
 			mux.Lock()
-			testNum, modelNum = 0, 0
+			testCase.modelNum, testCase.testNum = 0, 0
+			//testNum, modelNum = 0, 0
 			trTableEmpty := true
 
 			eTable.ForEach("tr", func(_ int, e *colly.HTMLElement) {
@@ -60,28 +68,15 @@ func webClamb(outputPath string, file os.FileInfo, collUpper colly.Collector, co
 
 			eTable.ForEach(".staggered-odd", func(_ int, e *colly.HTMLElement) {
 				output.WriteString(";")
+
 				// output history, error least one can't print out
 				e.ForEach("div", func(_ int, el *colly.HTMLElement) {
-					output.WriteString(el.ChildText("div:nth-child(1)"))
 					if el.ChildText("div:nth-child(1)") != "" {
+						output.WriteString(" " + el.ChildText("div:nth-child(1)") + " ")
 						testNum++
 					}
 					trTableEmpty = false
 				})
-
-				//output.WriteString(";" + e.ChildText("div:nth-child(1)"))
-
-				// e.ForEach("a[href]", func(_ int, el *colly.HTMLElement) {
-				// 	output.WriteString(";" + el.Text)
-				// 	trTableEmpty = false
-				// })
-
-				// output.WriteString(" : " + e.ChildText("div:nth-child(2)"))
-
-				// e.ForEach("div > div > div", func(_ int, el *colly.HTMLElement) {
-				// 	output.WriteString(" : " + el.Text)
-				// 	trTableEmpty = false
-				// })
 			})
 
 			if trTableEmpty == false {
@@ -90,7 +85,7 @@ func webClamb(outputPath string, file os.FileInfo, collUpper colly.Collector, co
 
 			// output date
 			eTable.ForEach(".staggered-odd", func(_ int, e *colly.HTMLElement) {
-				output.WriteString(";" + e.ChildText("div:nth-child(2)"))
+				output.WriteString(";" + " " + e.ChildText("div:nth-child(2)") + " ")
 				trTableEmpty = false
 			})
 
@@ -137,17 +132,15 @@ func webClamb(outputPath string, file os.FileInfo, collUpper colly.Collector, co
 			}
 
 			output.WriteString("\n;;")
+			mux.Unlock()
 		})
 
 		collUpper.Visit("http://localhost:" + port + "/" + file.Name())
 
+		fmt.Println(file.Name(), " ", modelNum)
+
 		collLower.OnHTML("table.matrix ", func(eTable *colly.HTMLElement) {
 			eTable.ForEach("tr", func(_ int, e *colly.HTMLElement) {
-
-				//trEmpty := true
-
-				//mux.Lock()
-				//testNum = 25
 
 				// output model name
 				e.ForEach(".boardmodel", func(_ int, el *colly.HTMLElement) {
@@ -155,10 +148,6 @@ func webClamb(outputPath string, file os.FileInfo, collUpper colly.Collector, co
 						output.WriteString("\n" + el.ChildText("span") + ";")
 					}
 
-					// el.ForEach("span", func(_ int, el2 *colly.HTMLElement) {
-					// 	output.WriteString(el2.Text + ";")
-					// 	trEmpty = false
-					// })
 				})
 
 				e.ForEach(".cell-full", func(_ int, el *colly.HTMLElement) {
@@ -172,11 +161,10 @@ func webClamb(outputPath string, file os.FileInfo, collUpper colly.Collector, co
 				})
 
 			})
-			mux.Unlock()
 		})
 
 		collLower.Visit("http://localhost:" + port + "/" + file.Name())
-		// fmt.Println(output.Name())
+		//fmt.Println(output.Name())
 		wg.Done()
 
 	}
@@ -184,6 +172,10 @@ func webClamb(outputPath string, file os.FileInfo, collUpper colly.Collector, co
 }
 
 func main() {
+	defer os.Exit(0)
+
+	var testCase Info
+
 	collUpper := colly.NewCollector()
 	collLower := colly.NewCollector()
 	wg := new(sync.WaitGroup)
@@ -200,130 +192,15 @@ func main() {
 	// create a folder called output if it doesnt exist
 	outputPath := filepath.Join(dir, outputDirName)
 	err = os.MkdirAll(outputPath, os.ModePerm)
-	fmt.Println(outputPath)
 	if err != nil {
 		fmt.Println(err)
 	}
 
 	for _, file := range files {
 		wg.Add(1)
-		go webClamb(outputPath, file, *collUpper, *collLower, port, wg)
+		go webClamb(testCase, outputPath, file, *collUpper, *collLower, port, wg)
 	}
 
 	wg.Wait()
-
-	// find "name.csv", if not existed, create one; if existed, clear it.
-	// output, err := os.Create("arc.MediaSourceUI" + ".csv")
-	// if err != nil {
-	// 	fmt.Println("File is failed, err: ", err)
-	// }
-	// defer output.Close()
-	// go func() {
-	// 	for _, file := range files {
-	// 		if file.IsDir() {
-	// 			continue
-	// 		} else {
-	// 			fmt.Println(file.Name(), i)
-	// 			i = i + 1
-
-	// 			// find "file.name().csv", if not existed, create one; if existed, clear it.
-	// 			// the output file will created in path ./output/
-
-	// 			output, err := os.Create("./output/" + strings.Replace(file.Name(), ".html", "", -1) + ".csv")
-
-	// 			//fmt.Println(output.Name())
-	// 			if err != nil {
-	// 				fmt.Println("File is failed, err: ", err)
-	// 			}
-	// 			output.WriteString(";")
-
-	// 			// find class=text-light from <tr>
-	// 			coll.OnHTML("table", func(eTable *colly.HTMLElement) {
-	// 				trTableEmpty := true
-	// 				mux.Lock()
-	// 				eTable.ForEach(".staggered-odd", func(_ int, e *colly.HTMLElement) {
-	// 					// output history, error least one can't print out
-	// 					e.ForEach("a[href]", func(_ int, el *colly.HTMLElement) {
-	// 						output.WriteString(";123" + el.Text)
-	// 						trTableEmpty = false
-	// 					})
-
-	// 					// output.WriteString(" : " + e.ChildText("div:nth-child(2)"))
-
-	// 					// e.ForEach("div > div > div", func(_ int, el *colly.HTMLElement) {
-	// 					// 	output.WriteString(" : " + el.Text)
-	// 					// 	trTableEmpty = false
-	// 					// })
-	// 				})
-
-	// 				if trTableEmpty == false {
-	// 					output.WriteString("\n;")
-	// 				}
-
-	// 				// output date
-	// 				eTable.ForEach(".staggered-odd", func(_ int, e *colly.HTMLElement) {
-	// 					output.WriteString(";" + e.ChildText("div:nth-child(2)"))
-	// 					trTableEmpty = false
-	// 				})
-
-	// 				if trTableEmpty == false {
-	// 					output.WriteString("\n")
-	// 				}
-	// 				mux.Unlock()
-
-	// 				eTable.ForEach("tr", func(_ int, e *colly.HTMLElement) {
-	// 					trEmpty := true
-	// 					mux.Lock()
-
-	// 					// output model name
-	// 					e.ForEach(".boardmodel", func(_ int, el *colly.HTMLElement) {
-	// 						el.ForEach("span", func(_ int, el2 *colly.HTMLElement) {
-	// 							output.WriteString(el2.Text + ";")
-	// 							trEmpty = false
-	// 						})
-	// 					})
-	// 					//fmt.Println("in onhtml", file.Name())
-	// 					e.ForEach(".cell-full", func(_ int, el *colly.HTMLElement) {
-	// 						el.ForEach(".text-light", func(_ int, el2 *colly.HTMLElement) {
-	// 							output.WriteString(el2.Text)
-	// 						})
-	// 						output.WriteString(";")
-	// 					})
-	// 					if trEmpty == false {
-	// 						output.WriteString("\n")
-	// 					}
-	// 					// output to the file with the same name
-	// 					mux.Unlock()
-	// 				})
-
-	// 			})
-
-	// 			coll.Visit("http://localhost:" + port + "/" + file.Name())
-	// 			// fmt.Println(output.Name())
-	// 			output.Close()
-
-	// 		}
-
-	// 	}
-	// }()
-
-	// testWrite, err := os.Create("./output/" + "arc.MediaSourceUI.html" + ".csv")
-
-	// // find class=text-light from <tr>
-	// coll.OnHTML("tr", func(e *colly.HTMLElement) {
-	// 	testWrite.WriteString("module;")
-	// 	e.ForEach(".text-light", func(_ int, el *colly.HTMLElement) {
-	// 		if el.Text != "" {
-	// 			fmt.Print(el.Text, ";")
-	// 			testWrite.WriteString(el.Text + ";")
-	// 		}
-	// 	})
-	// 	fmt.Println(";")
-	// 	// output to the file with the same name
-	// 	testWrite.WriteString(";\n")
-	// })
-	//time.Sleep(25 * time.Second)
-
-	// coll.Visit("http://localhost:" + port + "/" + "arc.MediaSourceUI.html")
 
 }

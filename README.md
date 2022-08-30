@@ -4,24 +4,37 @@ syntax
 
 ## Topic
 parse a .html file to .csv file, and the .csv can be import to google spreadsheet.<p>
-**it must be concurrency, it is not allowed to be processed one by one**
+**it must be concurrency, it is not allowed to be processed one by one(by sequence)**
 
+## Flag command
+``-port xxxx``
+default 8000<p>
+``-dir``default "/Users/leungyantung/go/src/github.com/training_ex1", input a directory with absolute path <p>
+``-outputDirName``default name is "/output"
 
-## Step
-1. using goroutine to read the test data's name cocurrency (V)
-2. serve the static file (port 8000) (V)
-3. web rawler to catch the data from .html file (V)
-4. analysis the data (ING)
-5. output the result (X)
-6. flag (1/2)
+## Output example
+`````
+test.csv
+; 15009 ;...
+; Jul 28 ;...
+;;...
+failed;=COUNTIF(B9:B13,"x");...
+pass;=SUM(B9:B13);...
+total runs;=COUNTA(B9:B13);...
+pass rate;=IF(B6=0,"N/A",B5/B6);...
+;;...
+model a;1;...
+model b;1;...
+model c;1;...
+model d;;...
+model e;x;...
+...;...;...
+``````
 
+### Google spreedsheet output
+https://docs.google.com/spreadsheets/d/1-qScuqnxE6JRwqxTLdISVNxccLbOOQGOFluQq3QCG9s/edit#gid=190169626
 
-## Keyword
-1. static file
-2. httptest
-3. colly // check keyword from a web page or a server
+1. "1" -> test passed
+2. "x" -> test failed
+3. " "(blank space) -> didn't test
 
-lister and serve
-http.handle
-
-using flag package set port(V)
