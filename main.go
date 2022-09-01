@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -49,7 +51,7 @@ func init() {
 
 }
 
-func webClamb(testCase *Info, output *os.File, file os.FileInfo, collUpper colly.Collector, collLower colly.Collector, port string, wg *sync.WaitGroup) {
+func webClamb(testCase *Info, output *os.File, file os.FileInfo, collUpper colly.Collector, collLower colly.Collector, port string, wg *sync.WaitGroup, ts *httptest.Server) {
 	defer output.Close()
 
 	collUpper.OnHTML("table.matrix ", func(eTable *colly.HTMLElement) {
@@ -133,7 +135,8 @@ func webClamb(testCase *Info, output *os.File, file os.FileInfo, collUpper colly
 		mux.Unlock()
 	})
 
-	collUpper.Visit("http://localhost:" + port + "/" + file.Name())
+	// collUpper.Visit("http://localhost:" + port + "/" + file.Name())
+	collUpper.Visit((ts.URL))
 
 	collLower.OnHTML("table.matrix ", func(eTable *colly.HTMLElement) {
 		mux.Lock()
@@ -179,7 +182,7 @@ func webClamb(testCase *Info, output *os.File, file os.FileInfo, collUpper colly
 		mux.Unlock()
 	})
 
-	collUpper.Visit("http://localhost:" + port + "/" + file.Name())
+	collUpper.Visit(ts.URL)
 
 	outputFileWrite(testCase, output)
 	wg.Done()
@@ -212,7 +215,7 @@ func outputFileWrite(testCase *Info, output *os.File) {
 	}
 }
 
-func main_2() {
+func main() {
 	defer os.Exit(0)
 
 	collUpper := colly.NewCollector()
@@ -252,6 +255,7 @@ func main_2() {
 		}
 
 		if file.IsDir() || strings.Contains(file.Name(), ".html") == false {
+			fmt.Println(file.Name())
 			continue
 		} else {
 			// if wg.Add(1) is outside else {}, when there are no file can be processed, the program will struck
@@ -261,20 +265,20 @@ func main_2() {
 			// clear file if file already existed, output file name will as the same as input file
 			// also, to avoid double file format, .html will be taken out by strings.Replace
 
-			// ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// 	file, err := os.Open(file.Name())
-			// 	if err != nil {
-			// 		fmt.Println(err)
-			// 	}
-			// 	b, err := ioutil.ReadAll(file)
-			// 	w.Write(b)
-			// }))
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				testData_file, err := os.Open("./test_data/" + file.Name())
+				if err != nil {
+					fmt.Println(err)
+				}
+				b, err := ioutil.ReadAll(testData_file)
+				w.Write(b)
+			}))
 			output, err := os.Create(outputPath + "/" + strings.Replace(file.Name(), ".html", "", -1) + ".csv")
 			fmt.Println("Created output file: ", output.Name())
 			if err != nil {
 				fmt.Println("File is failed, err: ", err)
 			}
-			go webClamb(&testCase, output, file, *collUpper, *collLower, port, wg)
+			go webClamb(&testCase, output, file, *collUpper, *collLower, port, wg, ts)
 		}
 	}
 

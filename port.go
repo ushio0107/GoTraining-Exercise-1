@@ -109,7 +109,7 @@ func init() {
 
 }
 
-func main() {
+func main_port() {
 	// handler := func(w http.ResponseWriter, r *http.Request) {
 	// 	file, err := os.Open("./test/arc.MediaSourceUI.html")
 	// 	if err != nil {
