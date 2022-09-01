@@ -1,0 +1,20 @@
+; 15032 ; 15029 ; 15028 ; 15027 ; 15026 ; 15025 ; 15024 ; 15023 ; 15022 ; 15021 ; 15020 ; 15019 ; 15018 ; 15017 ; 15016 ; 15015 ; 15014 ; 15013 ; 15012 ; 15011 ; 15010 ; 15009 ; 15007 ; 15006 ; 15005 ; 15004 ; 15003 ; 15002 ; 15001 
+; Aug 8 ; Aug 7 ; Aug 6 ; Aug 5 ; Aug 5 ; Aug 4 ; Aug 4 ; Aug 3 ; Aug 3 ; Aug 3 ; Aug 2 ; Aug 2 ; Aug 1 ; Aug 1 ; Jul 31 ; Jul 31 ; Jul 30 ; Jul 30 ; Jul 29 ; Jul 29 ; Jul 28 ; Jul 28 ; Jul 27 ; Jul 27 ; Jul 27 ; Jul 26 ; Jul 26 ; Jul 25 ; Jul 25 
+;;
+failed;123=COUNTIF(B9:B20, "x");=COUNTIF(C9:C20, "x");=COUNTIF(D9:D20, "x");=COUNTIF(E9:E20, "x");=COUNTIF(F9:F20, "x");=COUNTIF(G9:G20, "x");=COUNTIF(H9:H20, "x");=COUNTIF(I9:I20, "x");=COUNTIF(J9:J20, "x");=COUNTIF(K9:K20, "x");=COUNTIF(L9:L20, "x");=COUNTIF(M9:M20, "x");=COUNTIF(N9:N20, "x");=COUNTIF(O9:O20, "x");=COUNTIF(P9:P20, "x");=COUNTIF(Q9:Q20, "x");=COUNTIF(R9:R20, "x");=COUNTIF(S9:S20, "x");=COUNTIF(T9:T20, "x");=COUNTIF(U9:U20, "x");=COUNTIF(V9:V20, "x");=COUNTIF(W9:W20, "x");=COUNTIF(X9:X20, "x");=COUNTIF(Y9:Y20, "x");=COUNTIF(Z9:Z20, "x");=COUNTIF(AA9:AA20, "x");=COUNTIF(AB9:AB20, "x");=COUNTIF(AC9:AC20, "x");=COUNTIF(AD9:AD20, "x");
+pass;=SUM(B9:B20);=SUM(C9:C20);=SUM(D9:D20);=SUM(E9:E20);=SUM(F9:F20);=SUM(G9:G20);=SUM(H9:H20);=SUM(I9:I20);=SUM(J9:J20);=SUM(K9:K20);=SUM(L9:L20);=SUM(M9:M20);=SUM(N9:N20);=SUM(O9:O20);=SUM(P9:P20);=SUM(Q9:Q20);=SUM(R9:R20);=SUM(S9:S20);=SUM(T9:T20);=SUM(U9:U20);=SUM(V9:V20);=SUM(W9:W20);=SUM(X9:X20);=SUM(Y9:Y20);=SUM(Z9:Z20);=SUM(AA9:AA20);=SUM(AB9:AB20);=SUM(AC9:AC20);=SUM(AD9:AD20);
+total run;=COUNTA(B9:B20);=COUNTA(C9:C20);=COUNTA(D9:D20);=COUNTA(E9:E20);=COUNTA(F9:F20);=COUNTA(G9:G20);=COUNTA(H9:H20);=COUNTA(I9:I20);=COUNTA(J9:J20);=COUNTA(K9:K20);=COUNTA(L9:L20);=COUNTA(M9:M20);=COUNTA(N9:N20);=COUNTA(O9:O20);=COUNTA(P9:P20);=COUNTA(Q9:Q20);=COUNTA(R9:R20);=COUNTA(S9:S20);=COUNTA(T9:T20);=COUNTA(U9:U20);=COUNTA(V9:V20);=COUNTA(W9:W20);=COUNTA(X9:X20);=COUNTA(Y9:Y20);=COUNTA(Z9:Z20);=COUNTA(AA9:AA20);=COUNTA(AB9:AB20);=COUNTA(AC9:AC20);=COUNTA(AD9:AD20);
+pass rate;=IF(B5=0, "N/A",B5/B6);=IF(C5=0, "N/A",C5/C6);=IF(D5=0, "N/A",D5/D6);=IF(E5=0, "N/A",E5/E6);=IF(F5=0, "N/A",F5/F6);=IF(G5=0, "N/A",G5/G6);=IF(H5=0, "N/A",H5/H6);=IF(I5=0, "N/A",I5/I6);=IF(J5=0, "N/A",J5/J6);=IF(K5=0, "N/A",K5/K6);=IF(L5=0, "N/A",L5/L6);=IF(M5=0, "N/A",M5/M6);=IF(N5=0, "N/A",N5/N6);=IF(O5=0, "N/A",O5/O6);=IF(P5=0, "N/A",P5/P6);=IF(Q5=0, "N/A",Q5/Q6);=IF(R5=0, "N/A",R5/R6);=IF(S5=0, "N/A",S5/S6);=IF(T5=0, "N/A",T5/T6);=IF(U5=0, "N/A",U5/U6);=IF(V5=0, "N/A",V5/V6);=IF(W5=0, "N/A",W5/W6);=IF(X5=0, "N/A",X5/X6);=IF(Y5=0, "N/A",Y5/Y6);=IF(Z5=0, "N/A",Z5/Z6);=IF(AA5=0, "N/A",AA5/AA6);=IF(AB5=0, "N/A",AB5/AB6);=IF(AC5=0, "N/A",AC5/AC6);=IF(AD5=0, "N/A",AD5/AD6);
+;;
+hana;;;;;;;;;;;;;;;;;1;;1;;;;;;;;;;
+hana-kernelnext (hana);;;1;;1;;;;;;;;;1;;;;;;;;;1;;1;;1;;
+kukui-arc-r (krane);;;1;;1;;;;;1;;;;;;1;;1;;;1;;;;1;;;;
+kukui-kernelnext (kodama);;;;;1;;;;;1;;;;1;;;;;;;1;;;;1;;;;
+kukui-kernelnext (krane);;;1;;1;;;;;1;;;;1;;;;1;;;;;;;1;;;;
+octopus (bobba);;;;;;;;;;1;;;;;;;;;;;1;;;;1;;1;;
+octopus (bobba360);;;;;1;;;;;1;;;;1;1;1;;;;;;;;;1;;;;
+octopus (casta);;;1;;1;;;;;1;1;1;1;;;;;1;;;;;1;;;;;;
+octopus-kernelnext (bobba);;;1;;1;;;;;1;;1;;1;;;;1;;;;;;;;;;;
+octopus-kernelnext (bobba360);;;1;;;;;;;1;;;;;;;;1;;;1;;1;;;;;;
+octopus-kernelnext (casta);;;1;;1;;;;;1;;;;;;1;;1;;;1;;;;;;;;
+snappy-kernelnext (snappy);;;1;;1;;;;1;1;;;;;;1;;;;;;;1;;1;;;;
