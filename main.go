@@ -14,14 +14,18 @@ import (
 	WebServe "github.com/training_ex1/Training_Program"
 )
 
-var port, dir, outputDirName string
-var testNum, modelNum int
-var mux sync.Mutex
+var (
+	port          string
+	dir           string
+	outputDirName string
+
+	mux sync.Mutex
+)
 
 type Info struct {
-	testInfo    TestInfo
-	modelInfo   ModelInfo
-	excelFomula string
+	testInfo     TestInfo
+	modelInfo    ModelInfo
+	excelFormula string
 }
 
 type TestInfo struct {
@@ -37,246 +41,201 @@ type ModelInfo struct {
 }
 
 func init() {
-	// flag, set port and dir, one more needed
-	flag.StringVar(&port, "port", "8000", "input port")
-	flag.StringVar(&dir, "dir", ".", "input path")
-	flag.StringVar(&outputDirName, "outputDirName", "/output", "input outputDirName")
+	flag.StringVar(&port, "port", "8000", "local host server port")
+	flag.StringVar(&dir, "dir", ".", "the working directory ")
+	flag.StringVar(&outputDirName, "outputDirName", "/output", "the name of the directory which stored the output files")
+
+	flag.Parse()
 
 }
 
-func webClamb(testCase *Info, outputPath string, file os.FileInfo, collUpper colly.Collector, collLower colly.Collector, port string, wg *sync.WaitGroup) {
-	if file.IsDir() {
-		return // continue
-	} else {
+func webClamb(testCase *Info, output *os.File, file os.FileInfo, collUpper colly.Collector, collLower colly.Collector, port string, wg *sync.WaitGroup) {
+	defer output.Close()
 
-		// To avoid output files aren't exist, os.Create will create file if file doesn't exist,
-		// clear file if file already existed, output file name will as the same as input file
-		// also, to avoid double file format, .html will be taken out by strings.Replace
-		output, err := os.Create(outputPath + "/" + strings.Replace(file.Name(), ".html", "", -1) + ".csv")
-		fmt.Println("Created output file: ", output.Name())
-		if err != nil {
-			fmt.Println("File is failed, err: ", err)
-		}
-		defer output.Close()
+	collUpper.OnHTML("table.matrix ", func(eTable *colly.HTMLElement) {
+		mux.Lock()
 
-		// select path
-		collUpper.OnHTML("table.matrix ", func(eTable *colly.HTMLElement) {
-			mux.Lock()
-			testNum, modelNum = 0, 0
-			trTableEmpty := true
-
-			//body > div > table.matrix.table.table-sm.table-less-padding.table-borderless.table-striped > tbody > tr:nth-child(3) > td.boardmodel.text-ellipsis > span
-			// eTable.ForEach("tr", func(_ int, e *colly.HTMLElement) {
-			// 	e.ForEach(".boardmodel", func(_ int, el *colly.HTMLElement) {
-			// 		if el.ChildText("span") != "" {
-			// 			modelNum++
-			// 		}
-			// 	})
-			// })
-			eTable.ForEach("td.boardmodel", func(_ int, e *colly.HTMLElement) {
-				if e.ChildText("span") != "" {
-					testCase.modelInfo.modelNum++
-					modelNum++
-				}
-			})
-
-			eTable.ForEach(".staggered-odd", func(_ int, e *colly.HTMLElement) {
-				// output.WriteString(";")
-
-				// output history, error least one can't print out
-				e.ForEach("div", func(_ int, el *colly.HTMLElement) {
-					if el.ChildText("div:nth-child(1)") != "" {
-						// output.WriteString(" " + el.ChildText("div:nth-child(1)") + " ")
-						//testCase.testNo = el.ChildText("div:nth-child(1)")
-						testCase.testInfo.testNo = append(testCase.testInfo.testNo, el.ChildText("div:nth-child(1)"))
-
-						//output.WriteString(" " + testCase.testInfo.testNo[testCase.testInfo.testNum])
-						testNum++
-						testCase.testInfo.testNum++
-					}
-					trTableEmpty = false
-				})
-			})
-
-			if trTableEmpty == false {
-				// output.WriteString("\n")
+		// Data				: model number
+		// Selector Path	: table.matrix > td.boardmodel > span
+		// Stored			: testCase.modelInfo.modelNum
+		// Usage			: used at excel formula
+		eTable.ForEach("td.boardmodel", func(_ int, e *colly.HTMLElement) {
+			if e.ChildText("span") != "" {
+				testCase.modelInfo.modelNum++
 			}
-
-			// output date
-			eTable.ForEach(".staggered-odd", func(_ int, e *colly.HTMLElement) {
-				testCase.testInfo.testDate = append(testCase.testInfo.testDate, e.ChildText("div:nth-child(2)"))
-				// output.WriteString(";" + " " + e.ChildText("div:nth-child(2)") + " ")
-				trTableEmpty = false
-			})
-
-			//mux.Unlock()
-
-			// output.WriteString("\n;;")
-
-			// output failed info
-			// output.WriteString("\nfailed;")
-			testCase.excelFomula = "\nfailed;"
-			for i := 0; i < testNum; i++ {
-				if i < 25 {
-					testCase.excelFomula = testCase.excelFomula + "=COUNTIF(" + string(66+i) + "9:" + string(66+i) + strconv.Itoa(modelNum+8) + ", \"x\");"
-					// output.WriteString("=COUNTIF(" + string(66+i) + "9:" + string(66+i) + strconv.Itoa(modelNum+8) + ", \"x\");")
-				} else {
-					testCase.excelFomula = testCase.excelFomula + "=COUNTIF(" + string(65) + string(65+i%25) + "9:" + string(65) + string(65+i%25) + strconv.Itoa(modelNum+8) + ", \"x\");"
-					// output.WriteString("=COUNTIF(" + string(65) + string(65+i%25) + "9:" + string(65) + string(65+i%25) + strconv.Itoa(modelNum+8) + ", \"x\");")
-				}
-			}
-			testCase.excelFomula = testCase.excelFomula + "\npass;"
-			//output.WriteString("\nfailed;" + "COUNTIF(B9:B330, \"x\");")
-			// output pass info
-			// output.WriteString("\npass;")
-			for i := 0; i < testNum; i++ {
-				if i < 25 {
-					testCase.excelFomula = testCase.excelFomula + "=SUM(" + string(66+i) + "9:" + string(66+i) + strconv.Itoa(modelNum+8) + ");"
-				} else {
-					testCase.excelFomula = testCase.excelFomula + "=SUM(" + string(65) + string(65+i%25) + "9:" + string(65) + string(65+i%25) + strconv.Itoa(modelNum+8) + ");"
-				}
-			}
-			// output total run info
-			testCase.excelFomula = testCase.excelFomula + "\ntotal run;"
-			// output.WriteString("\ntotal run;")
-			for i := 0; i < testNum; i++ {
-				if i < 25 {
-					testCase.excelFomula = testCase.excelFomula + "=COUNTA(" + string(66+i) + "9:" + string(66+i) + strconv.Itoa(modelNum+8) + ");"
-					// output.WriteString("=COUNTA(" + string(66+i) + "9:" + string(66+i) + strconv.Itoa(modelNum+8) + ");")
-				} else {
-					testCase.excelFomula = testCase.excelFomula + "=COUNTA(" + string(65) + string(65+i%25) + "9:" + string(65) + string(65+i%25) + strconv.Itoa(modelNum+8) + ");"
-					// output.WriteString("=COUNTA(" + string(65) + string(65+i%25) + "9:" + string(65) + string(65+i%25) + strconv.Itoa(modelNum+8) + ");")
-				}
-			}
-			// output pass rate info
-			// output.WriteString("\npass rate;")
-			testCase.excelFomula = testCase.excelFomula + "\npass rate;"
-			for i := 0; i < testNum; i++ {
-				if i < 25 {
-					testCase.excelFomula = testCase.excelFomula + "=IF(" + string(66+i) + "5=0, \"N/A\"," + string(66+i) + "5/" + string(66+i) + "6);"
-					// output.WriteString("=IF(" + string(66+i) + "5=0, \"N/A\"," + string(66+i) + "5/" + string(66+i) + "6);")
-				} else {
-					testCase.excelFomula = testCase.excelFomula + "=IF(" + string(65) + string(65+i%25) + "5=0, \"N/A\"," + string(65) + string(65+i%25) + "5/" + string(65) + string(65+i%25) + "6);"
-					// output.WriteString("=IF(" + string(65) + string(65+i%25) + "5=0, \"N/A\"," + string(65) + string(65+i%25) + "5/" + string(65) + string(65+i%25) + "6);")
-				}
-			}
-
-			// output.WriteString("\n;;")
-			mux.Unlock()
 		})
 
-		collUpper.Visit("http://localhost:" + port + "/" + file.Name())
+		// Data				: test case No.
+		// Selector Path	: table.matrix > div > div:nth-child(1)
+		// Stored			: testCase.testInfo.testNo
+		eTable.ForEach(".staggered-odd", func(_ int, e *colly.HTMLElement) {
+			e.ForEach("div", func(_ int, el *colly.HTMLElement) {
+				if el.ChildText("div:nth-child(1)") != "" {
+					testCase.testInfo.testNo = append(testCase.testInfo.testNo, el.ChildText("div:nth-child(1)"))
 
-		// fmt.Println(file.Name(), " ", modelNum)
-		i := 0
+					// Calculate the number of test case, used at excel formula
+					testCase.testInfo.testNum++
+				}
+			})
+		})
+		// Data				: test case date
+		// Selector Path	: table.matrix > tr.title-fg-row > div.staggered-odd > div:nth-child(2)
+		eTable.ForEach(".staggered-odd", func(_ int, e *colly.HTMLElement) {
+			testCase.testInfo.testDate = append(testCase.testInfo.testDate, e.ChildText("div:nth-child(2)"))
+		})
+
+		// Data:Excel Formula
+		// stored testCase.excelFormula, var type string
+		// * failed
+		// =COUNTIF("B9:BtestCaseNum", "x")
+		testCase.excelFormula = "\nfailed;"
+		for i := 0; i < testCase.testInfo.testNum; i++ {
+			if i < 25 {
+				testCase.excelFormula = testCase.excelFormula + "=COUNTIF(" + string(66+i) + "9:" + string(66+i) + strconv.Itoa(testCase.modelInfo.modelNum+8) + ", \"x\");"
+			} else {
+				testCase.excelFormula = testCase.excelFormula + "=COUNTIF(" + string(65) + string(65+i%25) + "9:" + string(65) + string(65+i%25) + strconv.Itoa(testCase.modelInfo.modelNum+8) + ", \"x\");"
+			}
+		}
+
+		// * pass
+		// =SUM("B9:BtestCaseNum")
+		testCase.excelFormula = testCase.excelFormula + "\npass;"
+		for i := 0; i < testCase.testInfo.testNum; i++ {
+			if i < 25 {
+				testCase.excelFormula = testCase.excelFormula + "=SUM(" + string(66+i) + "9:" + string(66+i) + strconv.Itoa(testCase.modelInfo.modelNum+8) + ");"
+			} else {
+				testCase.excelFormula = testCase.excelFormula + "=SUM(" + string(65) + string(65+i%25) + "9:" + string(65) + string(65+i%25) + strconv.Itoa(testCase.modelInfo.modelNum+8) + ");"
+			}
+		}
+
+		// * total run
+		// =COUNTA("B9:BtestCaseNum")
+		testCase.excelFormula = testCase.excelFormula + "\ntotal run;"
+		for i := 0; i < testCase.testInfo.testNum; i++ {
+			if i < 25 {
+				testCase.excelFormula = testCase.excelFormula + "=COUNTA(" + string(66+i) + "9:" + string(66+i) + strconv.Itoa(testCase.modelInfo.modelNum+8) + ");"
+			} else {
+				testCase.excelFormula = testCase.excelFormula + "=COUNTA(" + string(65) + string(65+i%25) + "9:" + string(65) + string(65+i%25) + strconv.Itoa(testCase.modelInfo.modelNum+8) + ");"
+			}
+		}
+
+		// * pass rate
+		// =IF(B5=0, "N\A", B5/B6)
+		testCase.excelFormula = testCase.excelFormula + "\npass rate;"
+		for i := 0; i < testCase.testInfo.testNum; i++ {
+			if i < 25 {
+				testCase.excelFormula = testCase.excelFormula + "=IF(" + string(66+i) + "5=0, \"N/A\"," + string(66+i) + "5/" + string(66+i) + "6);"
+			} else {
+				testCase.excelFormula = testCase.excelFormula + "=IF(" + string(65) + string(65+i%25) + "5=0, \"N/A\"," + string(65) + string(65+i%25) + "5/" + string(65) + string(65+i%25) + "6);"
+			}
+		}
+
+		mux.Unlock()
+	})
+
+	collUpper.Visit("http://localhost:" + port + "/" + file.Name())
+
+	collLower.OnHTML("table.matrix ", func(eTable *colly.HTMLElement) {
+		mux.Lock()
+		testCaseNum := 0
 		saveResult := ""
 		testCase.testInfo.testResult = append(testCase.testInfo.testResult, "")
 
-		collLower.OnHTML("table.matrix ", func(eTable *colly.HTMLElement) {
-			mux.Lock()
-
-			eTable.ForEach("tr", func(_ int, e *colly.HTMLElement) {
-				e.ForEach(".cell-full", func(_ int, el *colly.HTMLElement) {
-					//output.WriteString("len " + strconv.Itoa(len(testCase.testInfo.testResult[i])) + " ")
-					if el.ChildText(".text-success") != "" {
-						//testCase.testInfo.testResult[i] = testCase.testInfo.testResult[i] + "1;"
-						saveResult = saveResult + "1;"
-						// output.WriteString(el.ChildText(".text-success"))
-					} else if el.ChildText(".text-light") != "" {
-						//testCase.testInfo.testResult[i] = testCase.testInfo.testResult[i] + "x;"
-						saveResult = saveResult + "x;"
-						// output.WriteString(el.ChildText(".text-light"))
-					} else {
-						//testCase.testInfo.testResult[i] = testCase.testInfo.testResult[i] + ";"
-						saveResult = saveResult + ";"
-						//output.WriteString("1 " + testCase.testInfo.testResult[i])
-					}
-					//output.WriteString(testCase.testInfo.testResult[i])
-
-					// 	el.ForEach(".text-success", func(_ int, _ *colly.HTMLElement) {
-					// 		output.WriteString("1")
-					// 	})
-					// 	el.ForEach(".text-light", func(_ int, _ *colly.HTMLElement) {
-					// 		output.WriteString("x")
-					// 	})
-					// 	output.WriteString(";")
-				})
-
-				// output model name
-				// body > div > table.matrix.table.table-sm.table-less-padding.table-borderless.table-striped > tbody > tr:nth-child(3) > td.boardmodel.text-ellipsis > span
-				e.ForEach(".boardmodel", func(_ int, el *colly.HTMLElement) {
-					if el.ChildText("span") != "" {
-						testCase.modelInfo.modelName = append(testCase.modelInfo.modelName, el.ChildText("span"))
-						//testCase.testInfo.testResult[i] = saveResult
-						if i == 0 {
-							testCase.testInfo.testResult[0] = saveResult
-						} else {
-							testCase.testInfo.testResult = append(testCase.testInfo.testResult, saveResult)
-						}
-						saveResult = ""
-						// output.WriteString("\n" + el.ChildText("span") + ";")
-						// output.WriteString(testCase.testInfo.testResult[i])
-
-						i++
-						//output.WriteString(strconv.Itoa(i))
-					}
-
-				})
-				// body > div > table.matrix.table.table-sm.table-less-padding.table-borderless.table-striped > tbody > tr:nth-child(11) > td:nth-child(3)
-				// str := ""
+		// Data				: test case result
+		// Selector Path	: table.matrix > tr > td.cell-full / table.matrix > tr > td.cell-full > span.text-light / table.matrix > tr > td.cell-full > span.text-success
+		// Output			: ";" / "x" / "1"
+		eTable.ForEach("tr", func(_ int, e *colly.HTMLElement) {
+			e.ForEach(".cell-full", func(_ int, el *colly.HTMLElement) {
+				if el.ChildText(".text-success") != "" {
+					saveResult = saveResult + "1;"
+				} else if el.ChildText(".text-light") != "" {
+					saveResult = saveResult + "x;"
+				} else {
+					saveResult = saveResult + ";"
+				}
 			})
-			mux.Unlock()
+
+			// Data				: model name
+			// Selector Path	: table.matrix > td.boardmodel> span
+			// Stored			: testCase.testInfo.testResult
+			e.ForEach(".boardmodel", func(_ int, el *colly.HTMLElement) {
+				if el.ChildText("span") != "" {
+					testCase.modelInfo.modelName = append(testCase.modelInfo.modelName, el.ChildText("span"))
+
+					// after declared a variable slice string, it is required to store the first data in testResult[0]
+					// using append at first will store the first data in testResult[1] instead of testResult[0]
+					// so if testCaseNum == 0 can make sure the first data won't store at a wrong slice
+					if testCaseNum == 0 {
+						testCase.testInfo.testResult[0] = saveResult
+					} else {
+						testCase.testInfo.testResult = append(testCase.testInfo.testResult, saveResult)
+					}
+					saveResult = ""
+					testCaseNum++
+				}
+			})
+
 		})
+		mux.Unlock()
+	})
 
-		collLower.Visit("http://localhost:" + port + "/" + file.Name())
+	collUpper.Visit("http://localhost:" + port + "/" + file.Name())
 
-		outputFileWrite(testCase, output)
-		//fmt.Println(output.Name())
-		wg.Done()
-
-	}
+	outputFileWrite(testCase, output)
+	wg.Done()
 
 }
 
 func outputFileWrite(testCase *Info, output *os.File) {
-	// output test no.
+	// Output all the saved data to the output file ".csv"
+	// 1. test case no.
+	// 2. test case date
+	// 3. the formula calculated failed, pass, total run and pass rate
+	// 4. test case result, "x" means fail, "1" means pass, " " means it didn't take test
+	// using ";" to seperate all the information
 	for i, _ := range testCase.testInfo.testNo {
 		output.WriteString("; " + testCase.testInfo.testNo[i] + " ")
 	}
 	output.WriteString("\n")
 
-	// output test date
+	// 2.
 	for i, _ := range testCase.testInfo.testDate {
 		output.WriteString("; " + testCase.testInfo.testDate[i] + " ")
 	}
 
-	// output excel formula
-	output.WriteString("\n;;" + testCase.excelFomula + "\n;;")
+	// 3.
+	output.WriteString("\n;;" + testCase.excelFormula + "\n;;")
 
-	// output test result
+	// 4.
 	for i, _ := range testCase.modelInfo.modelName {
 		output.WriteString("\n" + testCase.modelInfo.modelName[i] + testCase.testInfo.testResult[i])
 	}
-
 }
 
-func main() {
+func main_2() {
 	defer os.Exit(0)
 
 	collUpper := colly.NewCollector()
 	collLower := colly.NewCollector()
 	wg := new(sync.WaitGroup)
 
-	flag.Parse()
-
-	data := `/test_data`                     // test data path
-	files, err := ioutil.ReadDir(dir + data) // read all the file inside the path above
+	// * Read Files:
+	// dir default is ".", so to speak the directory you are in when you run the execution file
+	// ioutil.ReadDir to read the file inside the working directory, and declared as "files"
+	files, err := ioutil.ReadDir(dir) // read all the file inside the path above
 	if err != nil {
 		fmt.Println(err)
 	}
-	go WebServe.WebServer(port, dir+data)
 
-	// create a folder called output if it doesnt exist
+	// * Host a local server
+	// .html file is not allowed to be crawled directly, hosting a local server with a port
+	// to make the package colly to implement web crawled successly.
+	go WebServe.WebServer(port, dir)
+
+	// * Output Dir Setting
+	// the output files and folder will be created under the test data directory,
+	// the files will include in the folder whose name is set by the user, or default "output"
+	// the folder will be created if it's not exist.
 	outputPath := filepath.Join(dir, outputDirName)
 	err = os.MkdirAll(outputPath, os.ModePerm)
 	if err != nil {
@@ -284,7 +243,6 @@ func main() {
 	}
 
 	for _, file := range files {
-		wg.Add(1)
 		testCase := Info{
 			testInfo: TestInfo{
 				testNum: 0,
@@ -292,7 +250,32 @@ func main() {
 				modelNum: 0,
 			},
 		}
-		go webClamb(&testCase, outputPath, file, *collUpper, *collLower, port, wg)
+
+		if file.IsDir() || strings.Contains(file.Name(), ".html") == false {
+			continue
+		} else {
+			// if wg.Add(1) is outside else {}, when there are no file can be processed, the program will struck
+			wg.Add(1)
+
+			// To avoid output files aren't exist, os.Create will create file if file doesn't exist,
+			// clear file if file already existed, output file name will as the same as input file
+			// also, to avoid double file format, .html will be taken out by strings.Replace
+
+			// ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// 	file, err := os.Open(file.Name())
+			// 	if err != nil {
+			// 		fmt.Println(err)
+			// 	}
+			// 	b, err := ioutil.ReadAll(file)
+			// 	w.Write(b)
+			// }))
+			output, err := os.Create(outputPath + "/" + strings.Replace(file.Name(), ".html", "", -1) + ".csv")
+			fmt.Println("Created output file: ", output.Name())
+			if err != nil {
+				fmt.Println("File is failed, err: ", err)
+			}
+			go webClamb(&testCase, output, file, *collUpper, *collLower, port, wg)
+		}
 	}
 
 	wg.Wait()

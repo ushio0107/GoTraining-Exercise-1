@@ -6,11 +6,17 @@ syntax
 parse a .html file to .csv file, and the .csv can be import to google spreadsheet.<p>
 **it must be concurrency, it is not allowed to be processed one by one(by sequence)**
 
-## Flag command
-``-port xxxx``
-default 8000<p>
-``-dir``default "/Users/leungyantung/go/src/github.com/training_ex1", input a directory with absolute path <p>
-``-outputDirName``default name is "/output"
+## Usage
+````
+./main
+Usage of /var/folders/7_/xsyw144x0bbb16rx1wgsk25w0000gn/T/go-build4141284240/b001/exe/main:
+  -dir string
+        the working directory  (default ".")
+  -outputDirName string
+        the name of the directory which stored the output files (default "/output")                                                                            
+ -port string 
+        local host server port (default "8000")
+`````
 
 ## Output example
 `````

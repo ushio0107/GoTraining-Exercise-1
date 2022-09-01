@@ -10,13 +10,17 @@ func WebServer(port string, dataPath string) {
 	fmt.Println("Listening and Serving port: ", port)
 
 	// serve the html file inside ./static
+	// srv := httptest.NewServer()
 	http.Handle("/", http.FileServer(http.Dir(dataPath)))
 
 	// port 8000
+	// httptest.newserver
 	err := http.ListenAndServe(":"+port, nil)
 	if err != nil {
 		fmt.Println(err)
 	}
+
+	// url.parse
 }
 
 // func rootHandler(w http.ResponseWriter, r *http.Request) {
